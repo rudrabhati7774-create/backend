@@ -1,38 +1,32 @@
-const express = require("express");
+import express from "express";
+import http from "http";
+import { Server } from "socket.io";
+import cors from "cors";
+
 const app = express();
-const http = require("http").createServer(app);
-const io = require("socket.io")(http, {
-  cors: { origin: "*" }
+app.use(cors());
+
+const server = http.createServer(app);
+
+const io = new Server(server, {
+  cors: {
+    origin: "*"
+  }
 });
-const fs = require("fs");
 
-let users = {};
-let messages = [];
+io.on("connection", (socket) => {
+  console.log("User connected:", socket.id);
 
-io.on("connection", socket => {
-
-  socket.on("join", username => {
-    users[socket.id] = username;
-    io.emit("users", Object.values(users));
-  });
-
-  socket.on("message", msg => {
-    const data = {
-      user: users[socket.id],
-      text: msg,
-      time: new Date().toLocaleTimeString()
-    };
-    messages.push(data);
-    io.emit("message", data);
+  socket.on("send-message", (data) => {
+    socket.broadcast.emit("receive-message", data);
   });
 
   socket.on("disconnect", () => {
-    delete users[socket.id];
-    io.emit("users", Object.values(users));
+    console.log("User disconnected:", socket.id);
   });
-
 });
 
-http.listen(3000, () => {
-  console.log("Server running on port 3000");
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  console.log("Server running on", PORT);
 });
